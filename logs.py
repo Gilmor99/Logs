@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 logs.py--implementation of the Logs Analysis Project.
 
@@ -10,7 +12,8 @@ to the following 3 questions -
 
 import psycopg2
 
-def connect(database_name = "news"):
+
+def connect(database_name="news"):
     """
     Function connect() to the PostgreSQL database.
     Returns a database connection and a cursor.
@@ -19,8 +22,9 @@ def connect(database_name = "news"):
         db = psycopg2.connect("dbname={}".format(database_name))
         cursor = db.cursor()
         return db, cursor
-    except:
-        print("<error message>")
+    except psycopg2.OperationalError as e:
+        print('Unable to connect! -- {0}').format(e)
+
 
 def popular_article():
     """
@@ -29,15 +33,12 @@ def popular_article():
     """
     DB, cursor = connect()
     query = '''
-                SELECT DISTINCT articles.title,
+                SELECT articles.title,
                 Count(log.path) AS popular
                 FROM   log,
                        articles
-                WHERE  Trim(LEADING '/article/' FROM
-                            Trim(TRAILING '/' FROM log.path))
-                        LIKE Concat('%', articles.slug, '%')
-                GROUP  BY log.path,
-                          articles.title
+                WHERE  log.path = concat('/article/', articles.slug)
+                GROUP  BY articles.title
                 ORDER  BY popular DESC
                 LIMIT  3
             '''
@@ -45,6 +46,7 @@ def popular_article():
     most = cursor.fetchall()
     DB.close()
     return most
+
 
 def popular_authors():
     """
@@ -60,9 +62,7 @@ def popular_authors():
                        authors
                        left join articles
                               ON authors.id = articles.author
-                WHERE  Trim(leading '/article/' FROM
-                                Trim(trailing '/' FROM log.path))
-                        LIKE Concat('%', articles.slug, '%')
+                WHERE  log.path = concat('/article/', articles.slug)
                 GROUP  BY authors.name
                 ORDER  BY popular DESC
             '''
@@ -70,6 +70,7 @@ def popular_authors():
     most = cursor.fetchall()
     DB.close()
     return most
+
 
 def failed_dates():
     """
@@ -98,12 +99,14 @@ def failed_dates():
     DB.close()
     return faildates
 
-'''
-Function print_report() is used to print the answers to each of the questions.
-It gets as input the table each query returns. The question and the name of the
-headers to be used in the report. Then it format and print the report.
-'''
+
 def print_report (table, title, header1, header2):
+    '''
+    Function print_report() is used to print the answers
+    to each of the questions. It gets as input the table each query returns.
+    The question and the name of the
+    headers to be used in the report. Then it format and print the report.
+    '''
     print ""
     print title
     print ""
@@ -111,14 +114,19 @@ def print_report (table, title, header1, header2):
         print str(row[0]) + " - " + str(row[1]) + " " + header2
     print ""
 
+
 # Print 1st queary
 print_report(popular_article(),
-    "What are the most popular three articles of all time?", "Article", "Views")
+             "What are the most popular three articles of all time?",
+             "Article", "Views")
 
-#print 2nd query
+
+# print 2nd query
 print_report(popular_authors(),
-    "Who are the most popular article authors of all time?", "Authors", "Views")
+             "Who are the most popular article authors of all time?",
+             "Authors", "Views")
 
-#print 3rd query
+# cprint 3rd query
 print_report(failed_dates(),
-    "On which days more than 1% of requests led to errors?", "Date", "Errors")
+             "On which days more than 1% of requests led to errors?",
+             "Date", "Errors")
